@@ -19,18 +19,57 @@ bot.on("message", (msg) => {
     async function generateText(chatId, messageText) {
       try {
         const result = await model.generateContent(messageText);
-        const response = result.response.text();
+        const response = await result.response.text();
+
         if (response) {
-          bot.sendMessage(chatId, response, {
-            parse_mode: "Markdown",
-          });
+          const splitMessage = (message, chunkSize = 1500) => {
+            const messageChunks = [];
+            let currentIndex = 0;
+
+            while (currentIndex < message.length) {
+              let chunk = message.slice(currentIndex, currentIndex + chunkSize);
+
+              if (currentIndex + chunkSize < message.length) {
+                const lastSpaceIndex = chunk.lastIndexOf(" ");
+                if (lastSpaceIndex > -1) {
+                  chunk = message.slice(
+                    currentIndex,
+                    currentIndex + lastSpaceIndex
+                  );
+                  currentIndex += lastSpaceIndex + 1;
+                } else {
+                  currentIndex += chunkSize;
+                }
+              } else {
+                currentIndex += chunkSize;
+              }
+
+              messageChunks.push(chunk);
+            }
+            return messageChunks;
+          };
+
+          const escapedResponse = response;
+
+          const messageChunks = splitMessage(escapedResponse, 1500);
+
+          for (const chunk of messageChunks) {
+            await bot.sendMessage(chatId, chunk, {
+              parse_mode: "Markdown",
+            });
+          }
         } else {
           bot.sendMessage(chatId, "Please Try Again Later");
         }
       } catch (error) {
-        bot.sendMessage(chatId, "bot is currently down");
+        bot.sendMessage(
+          chatId,
+          "The bot is currently down. Please try again later."
+        );
+        console.error("Error in generateText:", error);
       }
     }
+
     generateText(chatId, messageText);
   }
 });
