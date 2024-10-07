@@ -18,45 +18,57 @@ bot.on("message", (msg) => {
   } else {
     async function generateText(chatId, messageText) {
       try {
-        const result = await model.generateContent(messageText);
-        const response = await result.response.text();
-
+        const result = await model.generateContent({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: messageText,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            maxOutputTokens: 4000,
+            temperature: 0.1,
+          },
+        });
+        const response = result.response.text();
         if (response) {
-          const splitMessage = (message, chunkSize = 1500) => {
-            const messageChunks = [];
-            let currentIndex = 0;
+          try {
+            const maxMessageLength = 4096;
+            let messages = [];
 
-            while (currentIndex < message.length) {
-              let chunk = message.slice(currentIndex, currentIndex + chunkSize);
+            for (let i = 0; i < response.length; i += maxMessageLength) {
+              let chunk = response.slice(i, i + maxMessageLength);
 
-              if (currentIndex + chunkSize < message.length) {
-                const lastSpaceIndex = chunk.lastIndexOf(" ");
-                if (lastSpaceIndex > -1) {
-                  chunk = message.slice(
-                    currentIndex,
-                    currentIndex + lastSpaceIndex
-                  );
-                  currentIndex += lastSpaceIndex + 1;
-                } else {
-                  currentIndex += chunkSize;
-                }
-              } else {
-                currentIndex += chunkSize;
+              if (
+                chunk.endsWith("_") ||
+                chunk.endsWith("*") ||
+                chunk.endsWith("`")
+              ) {
+                const lastSafeIndex = chunk.lastIndexOf(" ", maxMessageLength);
+                chunk = chunk.slice(
+                  0,
+                  lastSafeIndex !== -1 ? lastSafeIndex : maxMessageLength
+                );
               }
 
-              messageChunks.push(chunk);
+              messages.push(chunk);
             }
-            return messageChunks;
-          };
-
-          const escapedResponse = response;
-
-          const messageChunks = splitMessage(escapedResponse, 1500);
-
-          for (const chunk of messageChunks) {
-            await bot.sendMessage(chatId, chunk, {
-              parse_mode: "Markdown",
-            });
+            for (const message of messages) {
+              try {
+                await bot.sendMessage(chatId, message, {
+                  parse_mode: "Markdown",
+                });
+              } catch (sendError) {
+                console.error("Failed to send message:");
+                await bot.sendMessage(chatId, message);
+              }
+            }
+          } catch (error) {
+            bot.sendMessage(chatId, "Please Try Again Later");
           }
         } else {
           bot.sendMessage(chatId, "Please Try Again Later");
@@ -66,7 +78,6 @@ bot.on("message", (msg) => {
           chatId,
           "The bot is currently down. Please try again later."
         );
-        console.error("Error in generateText:", error);
       }
     }
 
