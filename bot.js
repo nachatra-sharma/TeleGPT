@@ -73,3 +73,17 @@ bot.on("message", (msg) => {
     generateText(chatId, messageText);
   }
 });
+
+// Bind to a port to satisfy Render's requirements
+const express = require("express");
+const app = express();
+
+const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+  res.send("Telegram bot is running");
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});
