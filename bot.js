@@ -78,7 +78,7 @@ bot.on("message", (msg) => {
 const express = require("express");
 const app = express();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8001;
 
 app.get("/", (req, res) => {
   res.send("Telegram bot is running");
